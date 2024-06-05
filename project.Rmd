@@ -5,13 +5,41 @@ date: "2024-06-17"
 output: pdf_document
 ---
 
-# Part1: Tidying Data
+# Part1: Data exploration 
+
+regres residuals to prediect weights, weights to correct shift in residuals, reduce effect of random error, similar dispersion, 
+
+reduced preidction interval menas smaller variance if after transformation, wls corrects variance, 
+solving covriance problem
+
+pval: keep all params to zero, evidence that putting all to zero could provide a better fit, 
+
+boxcox to see which power to use, check closest
 
 We read our example data
 
 ```{r}
-#install.packages("dplyr")
+set.seed(2)
+#install.packages("ggfortify")
 library(dplyr)
+
+data_raw = read.csv("cybersecurity_attacks.csv")
+sampled_df <- data_raw[sample(nrow(data_raw), 10), ]
+
+plot(x=sampled_df$Source.Port, y=sampled_df$Destination.Port)
+
+
+df_selected <- sampled_df %>%
+  select(Source.Port, Destination.Port)
+
+model <- lm(Destination.Port ~ Source.Port, data = df_selected)
+
+library(ggfortify)
+autoplot(model)
+```
+
+```{r}
+
 
 data_raw = read.csv("cybersecurity_attacks.csv")
 data_cols <- data_raw %>% select(-Timestamp, -Source.IP.Address, -Destination.IP.Address, -User.Information, -Payload.Data)
