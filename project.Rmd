@@ -1,0 +1,56 @@
+---
+title: "STA302 Project"
+author: "Karyna Lim"
+date: "2024-06-17"
+output: pdf_document
+---
+
+# Part1: Tidying Data
+
+We read our example data
+
+```{r}
+#install.packages("dplyr")
+library(dplyr)
+
+data_raw = read.csv("cybersecurity_attacks.csv")
+data_cols <- data_raw %>% select(-Timestamp, -Source.IP.Address, -Destination.IP.Address, -User.Information, -Payload.Data)
+
+# checking that there are only a select few attributes in the data :
+all(data_raw$Firewall.Logs %in% c("Log Data", ""))
+all(data_raw$IDS.IPS.Alerts %in% c("Alert Data", ""))
+all(data_raw$Alerts.Warnings %in% c("Alert Triggered", ""))
+all(data_raw$Malware.Indicators %in% c("IoC Detected", ""))
+
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+unique_entries <- unique(data_raw$Malware.Indicators)
+print(unique_entries)
+
+
+data_cols <- data_cols %>%
+  mutate(across(c(Firewall.Logs), ~ ifelse(. == "Log Data", TRUE, FALSE)))
+
+data_cols <- data_cols %>%
+  mutate(across(c(IDS.IPS.Alerts), ~ ifelse(. == "Alert Data", TRUE, FALSE)))
+
+data_cols <- data_cols %>%
+  mutate(across(c(Alerts.Warnings), ~ ifelse(. == "Alert Triggered", TRUE, FALSE)))
+
+data_cols <- data_cols %>%
+  mutate(across(c(Malware.Indicators), ~ ifelse(. == "IoC Detected", TRUE, FALSE)))
+
+
+
+```
+
