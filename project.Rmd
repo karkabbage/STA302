@@ -19,22 +19,36 @@ boxcox to see which power to use, check closest
 We read our example data
 
 ```{r}
-set.seed(2)
+
+#install these and uncomment if u didn't download them yet:
 #install.packages("ggfortify")
+#install.packages("dplyr")
+#install.packages("ggplot2")
+
 library(dplyr)
+library(ggfortify)
 
-data_raw = read.csv("cybersecurity_attacks.csv")
-sampled_df <- data_raw[sample(nrow(data_raw), 10), ]
 
-plot(x=sampled_df$Source.Port, y=sampled_df$Destination.Port)
+data_raw = read.csv("data.csv")
+sampled_df <- data_raw[sample(nrow(data_raw), 500), ]
 
+#sampled_df$smoker <- ifelse(sampled_df$smoker == "yes", 1, 0)
+#sampled_df$sex <- ifelse(sampled_df$sex == "female", 1, 0)
+#sampled_df$region <- as.numeric(factor(sampled_df$region)) - 1
 
 df_selected <- sampled_df %>%
-  select(Source.Port, Destination.Port)
+ select(CRIM, PTRATIO, MEDV, TAX)
 
-model <- lm(Destination.Port ~ Source.Port, data = df_selected)
+#plot(x=sampled_df$children, y=sampled_df$charges)
 
-library(ggfortify)
+pairs( df_selected, panel=function(x,y){
+  points(x,y)
+  abline(lm(y~x), col='red')
+  text(0,1.5,labels = paste('R2=',round((cor(x,y))^2,2)) ,col='red' )
+})
+
+
+model <- lm(charges ~ region, data = df_selected)
 autoplot(model)
 ```
 
