@@ -19,7 +19,6 @@ boxcox to see which power to use, check closest
 We read our example data
 
 ```{r}
-
 #install these and uncomment if u didn't download them yet:
 #install.packages("ggfortify")
 #install.packages("dplyr")
@@ -28,32 +27,38 @@ We read our example data
 library(dplyr)
 library(ggfortify)
 
+n = 100 # number of samples
 
-data_raw = read.csv("data.csv")
-sampled_df <- data_raw[sample(nrow(data_raw), 500), ]
+data_raw = read.csv("inser_csv_here.csv")
+sampled_df <- data_raw[sample(nrow(data_raw), n), ]
 
+# below is how to change categorical / word data into numerical 
 #sampled_df$smoker <- ifelse(sampled_df$smoker == "yes", 1, 0)
 #sampled_df$sex <- ifelse(sampled_df$sex == "female", 1, 0)
 #sampled_df$region <- as.numeric(factor(sampled_df$region)) - 1
 
 df_selected <- sampled_df %>%
- select(CRIM, PTRATIO, MEDV, TAX)
+ select(VARIABLE_COLUMN_NAME_YOU_WANNA_KEEP) 
+# name that they are in the data set, seperate them by commas
 
 #plot(x=sampled_df$children, y=sampled_df$charges)
 
+# this plots each pair of variables against eachother to make sure they have a linear relation
 pairs( df_selected, panel=function(x,y){
   points(x,y)
   abline(lm(y~x), col='red')
   text(0,1.5,labels = paste('R2=',round((cor(x,y))^2,2)) ,col='red' )
 })
 
+# INSERT_RESPONSE_VAR, PREDICTOR_ONE, PREDICTOR_TWO are all names of the data columns/variables
+model <- lm(INSERT_RESPONSE_VAR ~ PREDICTOR_ONE, PREDICTOR_TWO, data = df_selected)
 
-model <- lm(charges ~ region, data = df_selected)
+# below tests the residuals if they follow our assumptions:
 autoplot(model)
 ```
 
-```{r}
-
+```{r} 
+# ignore this, cleaning and tidying data 
 
 data_raw = read.csv("cybersecurity_attacks.csv")
 data_cols <- data_raw %>% select(-Timestamp, -Source.IP.Address, -Destination.IP.Address, -User.Information, -Payload.Data)
