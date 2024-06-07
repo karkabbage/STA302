@@ -39,7 +39,7 @@ sampled_df <- data_raw[sample(nrow(data_raw), n), ]
 #sampled_df$region <- as.numeric(factor(sampled_df$region)) - 1
 
 df_selected <- sampled_df %>%
- select(transactionDate, houseAge, distanceMRTStation, noConvenienceStores, latitude, longitude, housePriceUnitArea) 
+ select(houseAge, distanceMRTStation, noConvenienceStores, housePriceUnitArea) 
 
 df_selected
 # name that they are in the data set, seperate them by commas
@@ -54,22 +54,21 @@ pairs( df_selected, panel=function(x,y){
 })
 
 # INSERT_RESPONSE_VAR, PREDICTOR_ONE, PREDICTOR_TWO are all names of the data columns/variables
-model <- lm(housePriceUnitArea ~ transactionDate + houseAge + distanceMRTStation + noConvenienceStores + latitude + longitude, data = df_selected)
+model <- lm(housePriceUnitArea ~ houseAge + distanceMRTStation + noConvenienceStores, data = df_selected)
 
 # below tests the residuals if they follow our assumptions:
-plot(model)
+autoplot(model)
 ```
 Looking at plot() results, not sure if we need transformation??
 
 ```{r}
 summary(model)
 ```
-Latitude/Longitude no sig?
 
 Next plot residuals 
 Taken from codealong6complete.rmd file.
 
-```{r}
+```{r, fig.height=12, fig.width=12,}
 X <- model.matrix(model)
 head(X)
 colnames(X)
@@ -83,7 +82,7 @@ par(mfrow=c(3,3))
 plot(rfull ~ model$fitted.values, xlab="Fitted Values", ylab="Residuals")
 
 # fill in the loop information to go around this
-for(i in 2:7){
+for(i in 2:4){
 plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
 }
 
@@ -91,6 +90,5 @@ plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
 qqnorm(rfull)
 qqline(rfull)
 ```
-Some clumping but residuals seem to be gathered around 0 which is good (?)
 
 
