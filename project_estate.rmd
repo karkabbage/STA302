@@ -40,6 +40,8 @@ sampled_df <- data_raw[sample(nrow(data_raw), n), ]
 
 df_selected <- sampled_df %>%
  select(transactionDate, houseAge, distanceMRTStation, noConvenienceStores, latitude, longitude, housePriceUnitArea) 
+
+df_selected
 # name that they are in the data set, seperate them by commas
 
 #plot(x=sampled_df$children, y=sampled_df$charges)
@@ -52,7 +54,7 @@ pairs( df_selected, panel=function(x,y){
 })
 
 # INSERT_RESPONSE_VAR, PREDICTOR_ONE, PREDICTOR_TWO are all names of the data columns/variables
-model <- lm(housePriceUnitArea ~ transactionDate + houseAge + distanceMRTStation + latitude + longitude, data = df_selected)
+model <- lm(housePriceUnitArea ~ transactionDate + houseAge + distanceMRTStation + noConvenienceStores + latitude + longitude, data = df_selected)
 
 # below tests the residuals if they follow our assumptions:
 plot(model)
@@ -62,7 +64,7 @@ Looking at plot() results, not sure if we need transformation??
 ```{r}
 summary(model)
 ```
-Concerned about intercept not being significant.
+Latitude/Longitude no sig?
 
 Next plot residuals 
 Taken from codealong6complete.rmd file.
@@ -81,7 +83,7 @@ par(mfrow=c(3,3))
 plot(rfull ~ model$fitted.values, xlab="Fitted Values", ylab="Residuals")
 
 # fill in the loop information to go around this
-for(i in 1:6){
+for(i in 2:7){
 plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
 }
 
