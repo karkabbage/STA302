@@ -71,6 +71,31 @@ model <- lm(MEDV ~ CRIM + NOX + LSTAT + DIS, data = df_selected)
 # below tests the residuals if they follow our assumptions:
 autoplot(model)
 ```
+NEW ADDITION: RESIDUALS VS. PREDICTORS. Look at plots and ensure residuals randomly scattered, no patterns (constant variance)
+Modified from codealong6complete.rmd file.
+
+```{r, fig.height=12, fig.width=12} 
+X <- model.matrix(model)
+head(X)
+colnames(X)
+
+# we will want a plot for all columns except the intercept, so columns 2-8
+# the residuals we need will come from the full model now
+rfull <- model$residuals
+
+# create our plot grid and our first plot
+par(mfrow=c(3,3))
+plot(rfull ~ model$fitted.values, xlab="Fitted Values", ylab="Residuals")
+
+# fill in the loop information to go around this
+for(i in 2:5){
+plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
+}
+
+# then add the normal QQ plot
+qqnorm(rfull)
+qqline(rfull)
+
 
 ```{r} 
 # ignore this, cleaning and tidying data 
