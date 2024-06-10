@@ -95,7 +95,7 @@ plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
 # then add the normal QQ plot
 qqnorm(rfull)
 qqline(rfull)
-
+```
 
 ```{r} 
 # ignore this, cleaning and tidying data 
