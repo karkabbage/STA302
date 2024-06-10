@@ -79,20 +79,19 @@ X <- model.matrix(model)
 head(X)
 colnames(X)
 
-# we will want a plot for all columns except the intercept, so columns 2-8
-# the residuals we need will come from the full model now
+#take residuals
 rfull <- model$residuals
 
-# create our plot grid and our first plot
+# create residuals vs fitted value plot
 par(mfrow=c(3,3))
 plot(rfull ~ model$fitted.values, xlab="Fitted Values", ylab="Residuals")
 
-# fill in the loop information to go around this
+# plots for residuals vs predictors
 for(i in 2:5){
 plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
 }
 
-# then add the normal QQ plot
+# QQ plot
 qqnorm(rfull)
 qqline(rfull)
 ```
