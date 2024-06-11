@@ -5,51 +5,232 @@ date: "2024-06-17"
 output: pdf_document
 ---
 
-# Part1: Data exploration 
-
-regres residuals to prediect weights, weights to correct shift in residuals, reduce effect of random error, similar dispersion, 
-
-reduced preidction interval menas smaller variance if after transformation, wls corrects variance, 
-solving covriance problem
-
-pval: keep all params to zero, evidence that putting all to zero could provide a better fit, 
-
-boxcox to see which power to use, check closest
-
-We read our example data
+# Part1: Data exploration and satisfying assumptions
 
 ```{r}
 #install these and uncomment if u didn't download them yet:
-#install.packages("ggfortify")
-#install.packages("dplyr")
-#install.packages("ggplot2")
+#install.packages("gridExtra")
 
 set.seed(1101119291)
-
+# Install and load necessary packages
+library(MASS)
 library(dplyr)
+library(ggplot2)
 library(ggfortify)
+library(gridExtra)
 
-n = 90 # number of samples
-
+#load data
 data_raw = read.csv("real_estate_final.csv")
 
+#filtering for highlighting data between certain range
+
+#QUESTION: if predictor data follows unusual distributions (ex: has two peaks), would filtering it (only allowing one peek) help in the transformation or is this not recommended? Should this only be done if there's good reason (ex: our research wanted to narrow down on certain range of values for XYZ reason?)
+
+total_observations <- nrow(data_raw)
+
+n_train = ceiling(total_observations*0.7) # number of samples
+train_data <- data_raw[sample(nrow(data_raw), n_train), ]
+
+# predictors related to community factors: 
+
+predictors <- c("CRIM","ZN","INDUS","NOX","DIS","RAD","TAX","PTRATIO","B","LSTAT")
+response <- "MEDV"
+
+
+# Function to create scatter plots with regression lines
+create_scatter_plot <- function(data, response, predictor) {
+  ggplot(data, aes_string(x = predictor, y = response)) +
+    geom_point(alpha = 0.5) + 
+    geom_smooth(method = "lm", se = FALSE, col = "blue", linetype = "dashed") +  # Linear regression line
+    geom_smooth(method = "loess", se = FALSE, col = "red") +  # LOESS smooth line
+     labs(title = paste("Scatter plot of", response, "vs", predictor),
+         x = predictor, y = response) +
+    theme_bw()
+}
+
+# Plot for each predictor
+plots <- lapply(predictors, function(pred) plot_with_trend(train_data, pred, response))
+
+# Create plots and display them
+plots <- lapply(predictors, function(predictor) {
+  create_scatter_plot(train_data, "MEDV", predictor)
+})
+
+# Print the plots
+for (plot in plots) {
+  print(plot)
+}
+```
+
+Clearly none of the relations between the predictors and response are linear (violation). We will now try preforming transformations on predictors and/or response based on the transformation methods (box-cox to obtain best power transformation, by checking what function the data follows)
+
+```{r}
+
+# cannot interpret cos its violates lin reg. assumptions
+model <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT, data = train_data)
+summary(model) 
+
+# below tests the residuals if they follow our assumptions:
+autoplot(model)
+
+library(car)
+
+# this transforms all X and Y simultaneously
+# QUESTION/HELP: it says some of the predictors are not postive but in the data set they all are, how to go about this?
+# summary(powerTransform(train_data[, c("CRIM","ZN","INDUS","NOX","DIS","RAD","TAX","PTRATIO","B","LSTAT")]))
+
+offset <- 2 # Adjust the offset value as needed
+
+selected_vars <- c("PTRATIO", "DIS")
+train_data[selected_vars] <- train_data[selected_vars] + offset
+
+# if we only wanted to consider transformations on X, code from codealong:
+# Apply the power transformation to multiple variables
+x_transforms <- powerTransform(train_data[, selected_vars])
+
+# TEMPORAIRLY using less predictors for now
+summary(x_transforms)
+print(x_transforms)
+
+# if we wanted only to transform y, we would use boxCox function instead
+boxCox(model)
+
+# Define the Box-Cox transformation function
+boxcox_transform <- function(x, lambda) {
+  if (lambda == 0) {
+    log(x)
+  } else {
+    (x^lambda - 1) / lambda
+  }
+}
+
+# Transform the predictor variable
+df_selected$LSTAT <- boxcox_transform(predictor, optimal_lambda)
+
+# based on power transformation...
+# train_data$CRIM <- log(train_data$CRIM)
+# train_data$LSTAT <- log(train_data$LSTAT)
+train_data$MEDV <- boxcox_transform(train_data$MEDV, 1.5)
+
+# re-fit the model with new variables
+model <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT, data = train_data)
+summary(model) 
+autoplot(model)
+
+# QUESTION: is above all the appropriate steps?
+# QUESTION: how to model without the bad outliers? how do we locate them in the sample and the data set???
+```
+
+NEW ADDITION: RESIDUALS VS. PREDICTORS. Look at plots and ensure residuals randomly scattered, no patterns (constant variance)
+Modified from codealong6complete.rmd file.
+
+```{r, fig.height=12, fig.width=12} 
+X <- model.matrix(model)
+head(X)
+colnames(X)
+
+#take residuals
+rfull <- model$residuals
+
+# create residuals vs fitted value plot
+par(mfrow=c(3,3))
+plot(rfull ~ model$fitted.values, xl\ab="Fitted Values", ylab="Residuals")
+
+# plots for residuals vs predictors
+for(i in 2:5){
+plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
+}
+
+# QQ plot
+qqnorm(rfull)
+qqline(rfull)
+```
+
+CHEKCING AND ADDRESSING MULTICOLINEARITY
+```{r}
+# QUESTION: for each predictor , should i compare its vif against all other predictors?
+
+# QUESTION: how do i check for the multi lin reg assumptions? what's the code and how to i make use of the var proprtional to expectation properties?
+
+# Checking conditions for multiple lin regression
+# 1) Conditional mean response is single function of predictors
+# 2) Conditional mean of each predictor is lin function with another predictor
+
+
+#install.packages("car")
+library(car)
+# Calculating VIF
+vif_values <- vif(model)
+vif_values
+
+# Visualizing the model
+plot(model, which = 1, main = "Model Fit")
+
+
+barplot(vif_values, col = "skyblue", main = "Variance Inflation Factor (VIF)")
+
+```
+
+
+# PART 2: Finding the right model
+ANOVA, CRITERIONS, REMOVING PREDICTORS, 
+
+```{r}
+#how to do stepwise forward selection, is there a function/predetermined algorithim for it? 
+
+```
+
+ignore below, past code
+
+```{r}
 # filtering to ensure continuous data, no jumps
-data_raw <- data_raw %>% filter(MEDV <=40)
-data_raw <- data_raw %>% filter(CRIM <=27)
+#data_raw <- data_raw %>% filter(MEDV <=40)
+#data_raw <- data_raw %>% filter(CRIM <=27)
 
 sampled_df <- data_raw[sample(nrow(data_raw), n), ]
 
-df_selected <- sampled_df %>% select(CRIM,NOX,RM, MEDV,LSTAT,DIS)#,TAX,PTRATIO,B,LSTAT,MEDV)
+df_selected <- sampled_df %>% dplyr::select(CRIM, NOX, MEDV, LSTAT, DIS)
 
-df_selected <- df_selected %>%mutate(DIS = sqrt(DIS))
+ 
+#BOX-COX TRANSFORMATION
+# Find optimal lambda for Box-Cox transformation 
+
+# Select the predictor variable you want to transform
+predictor <- df_selected$DIS
+
+# Fit a simple linear model
+model <- lm(predictor ~ 1)
+
+# Apply the Box-Cox transformation
+boxcox_result <- boxcox(model, lambda = seq(-5, 5, 0.1))
+
+# Find the optimal lambda
+optimal_lambda <- boxcox_result$x[which.max(boxcox_result$y)]
+
+# Define the Box-Cox transformation function
+boxcox_transform <- function(x, lambda) {
+  if (lambda == 0) {
+    log(x)
+  } else {
+    (x^lambda - 1) / lambda
+  }
+}
+
+# use result based on graph to tell you which transofrmtion to do
+
+powerTransform()
+
+
+# Transform the predictor variable
+df_selected <- df_selected %>% mutate(DIS = boxcox_transform(DIS, optimal_lambda))
+
 
 df_selected <- df_selected %>% mutate(NOX = sqrt(NOX))
 
 df_selected <- df_selected %>% mutate(CRIM = log(sqrt(CRIM)))
 
-df_selected <- df_selected %>% mutate(RM = sqrt(RM))
-
-df_selected["RM"] <- lapply(df_selected["RM"], function(x) (1 / x))
+#df_selected <- df_selected %>% mutate(RM = sqrt(RM))
+#df_selected["RM"] <- lapply(df_selected["RM"], function(x) (1 / x))
 
 #df_selected["DIS"] <- lapply(df_selected["DIS"], function(x) (1 / x**2))
 #df_selected["DIS"] <- lapply(df_selected["DIS"], log)
@@ -70,73 +251,5 @@ model <- lm(MEDV ~ CRIM + NOX + LSTAT + DIS, data = df_selected)
 
 # below tests the residuals if they follow our assumptions:
 autoplot(model)
-```
-NEW ADDITION: RESIDUALS VS. PREDICTORS. Look at plots and ensure residuals randomly scattered, no patterns (constant variance)
-Modified from codealong6complete.rmd file.
-
-```{r, fig.height=12, fig.width=12} 
-X <- model.matrix(model)
-head(X)
-colnames(X)
-
-#take residuals
-rfull <- model$residuals
-
-# create residuals vs fitted value plot
-par(mfrow=c(3,3))
-plot(rfull ~ model$fitted.values, xlab="Fitted Values", ylab="Residuals")
-
-# plots for residuals vs predictors
-for(i in 2:5){
-plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
-}
-
-# QQ plot
-qqnorm(rfull)
-qqline(rfull)
-```
-
-```{r} 
-# ignore this, cleaning and tidying data 
-
-data_raw = read.csv("cybersecurity_attacks.csv")
-data_cols <- data_raw %>% select(-Timestamp, -Source.IP.Address, -Destination.IP.Address, -User.Information, -Payload.Data)
-
-# checking that there are only a select few attributes in the data :
-all(data_raw$Firewall.Logs %in% c("Log Data", ""))
-all(data_raw$IDS.IPS.Alerts %in% c("Alert Data", ""))
-all(data_raw$Alerts.Warnings %in% c("Alert Triggered", ""))
-all(data_raw$Malware.Indicators %in% c("IoC Detected", ""))
-
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-unique_entries <- unique(data_raw$Malware.Indicators)
-print(unique_entries)
-
-
-data_cols <- data_cols %>%
-  mutate(across(c(Firewall.Logs), ~ ifelse(. == "Log Data", TRUE, FALSE)))
-
-data_cols <- data_cols %>%
-  mutate(across(c(IDS.IPS.Alerts), ~ ifelse(. == "Alert Data", TRUE, FALSE)))
-
-data_cols <- data_cols %>%
-  mutate(across(c(Alerts.Warnings), ~ ifelse(. == "Alert Triggered", TRUE, FALSE)))
-
-data_cols <- data_cols %>%
-  mutate(across(c(Malware.Indicators), ~ ifelse(. == "IoC Detected", TRUE, FALSE)))
-
-
-
 ```
 
