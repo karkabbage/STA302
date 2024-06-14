@@ -404,3 +404,43 @@ print(model_metrics)
 
 
 ```
+
+# PART 3: FINAL MODELS
+```{r}
+# Predict values using the model
+predicted_values <- predict(step.model3, clean_train_data)
+
+# Create a data frame with actual and predicted values
+plot_data <- clean_train_data %>%
+  mutate(Predicted_MEDV = predicted_values)
+
+# Plot actual vs predicted values with lines indicating the differences
+
+# Plot actual vs predicted values with lines indicating the differences
+ggplot(plot_data) +
+  geom_point(aes(x = MEDV, y = Predicted_MEDV), color = "blue", size = 2, alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") + # Add a y=x line for reference
+  labs(title = "Actual vs Predicted Values with Difference Lines",
+       x = "Actual MEDV",
+       y = "Predicted MEDV",
+       caption = "Blue points are the actual vs predicted values. Red dashed line represents perfect prediction.") +
+  theme_minimal()
+
+# Predict values using the model
+predicted_values1 <- predict(model_no_outliers, clean_train_data)
+
+# Create a data frame with actual and predicted values
+plot_data1 <- clean_train_data %>%
+  mutate(Predicted_MEDV = predicted_values1)
+
+# Plot actual vs predicted values with lines indicating the differences
+ggplot(plot_data1) +
+  geom_point(aes(x = MEDV, y = Predicted_MEDV), color = "blue", size = 2, alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") + # Add a y=x line for reference
+  labs(title = "Actual vs Predicted Values with Difference Lines",
+       x = "Actual MEDV",
+       y = "Predicted MEDV",
+       caption = "Blue points are the actual vs predicted values. Red dashed line represents perfect prediction.") +
+  theme_minimal()
+
+```
