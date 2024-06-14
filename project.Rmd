@@ -26,7 +26,7 @@ n_train = ceiling(total_observations*0.7) # number of samples
 train_data <- data_raw[sample(nrow(data_raw), n_train), ]
 
 # predictors related to community factors: 
-predictors <- c("CRIM","ZN","INDUS","NOX","DIS","RAD","TAX","PTRATIO","B","LSTAT")
+predictors <- c("CRIM","ZN","INDUS","NOX","DIS","RAD", "AGE", "TAX","PTRATIO","B","LSTAT")
 response <- "MEDV"
 
 # Plot histograms for each variable
@@ -53,7 +53,7 @@ train_data$ZN <- (cos(train_data$ZN))
 train_data$INDUS <- sqrt(train_data$INDUS)
 train_data$B <- log(train_data$B)
 train_data$CRIM <- cos(log(train_data$CRIM))**2
-
+train_data$AGE <- ((train_data$AGE))
 
 # Function to create scatter plots with regression lines
 create_scatter_plot <- function(data, response, predictor) {
@@ -83,7 +83,7 @@ for (plot in plots) {
 Now that the plots respect linearity, we've satisfied condition #1 for multilinear regression and that the data fits is going to fit in the appropriate model (linear). Although there are jumps, that may be due to outliers given jumps in data so linearity is less clear. With that, we'll test our residuals assumptions
 
 ```{r}
-model <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT, data = train_data)
+model <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT+AGE, data = train_data)
 summary(model) # current fit after applying transformations
 autoplot(model) # evaluating if residuals satisfy assumptions (they don't):
 ```
@@ -108,7 +108,7 @@ for (i in 1:length(cooksd)) {
 clean_train_data <- train_data[-influential_indices, ]
 
 # Refit the model with the cleaned data
-model_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT, data = clean_train_data)
+model_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT+AGE, data = clean_train_data)
 summary(model_no_outliers)
 autoplot(model_no_outliers)
 ```
@@ -131,7 +131,7 @@ par(mfrow=c(3,3))
 plot(rfull ~ model_no_outliers$fitted.values, xlab="Fitted Values", ylab="Residuals")
 
 # plots for residuals vs predictors
-for(i in 2:11){
+for(i in 2:12){
 plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
 }
 
@@ -178,12 +178,12 @@ New model and checking assumptions after removing based on vif graph
 
 ```{r}
 data_vif <- train_data %>% select(-RAD, -TAX)
-model_after_vif <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT, data = data_vif)
+model_after_vif <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif)
 summary(model_after_vif)
 autoplot(model_after_vif)
 
 data_vif_no_outliers <- clean_train_data %>% select(-RAD, -TAX)
-model_after_vif_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT, data = data_vif_no_outliers)
+model_after_vif_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif_no_outliers)
 summary(model_after_vif_no_outliers)
 autoplot(model_after_vif_no_outliers)
 ```
@@ -194,7 +194,6 @@ Now, it's clear that there is multicolinearity for RAD and TAX predictors. After
 office hour note: themes but harder to interpret directly
 
 # Multicolinear remedial measures
-
 PCA
 ```{r}
 # install.packages("FactoMineR")
@@ -256,7 +255,7 @@ library(ggplot2)
 library(tidyr)
 library(dplyr)
 
-ridge_data <- clean_train_data %>% select(CRIM, ZN, INDUS, NOX, DIS, RAD, TAX, PTRATIO, B, LSTAT, MEDV)
+ridge_data <- clean_train_data %>% select(CRIM, ZN, INDUS, NOX, DIS, RAD, TAX, PTRATIO, B, LSTAT, MEDV, AGE)
 
 # Preparing the matrices for glmnet
 X_train <- as.matrix(ridge_data %>% select(-MEDV))
@@ -289,71 +288,6 @@ ggplot(rmse_data, aes(x = Model, y = RMSE, fill = Model)) +
 
 ```
 
-# Choosing the best model
-ANOVA, CRITERIONS
-```{r}
-# anova(model)
-# anova(model_no_outliers)
-# anova(model_after_vif)
-# anova(model_after_vif_no_outliers)
-
-# Load necessary libraries
-library(dplyr)
-library(ggplot2)
-
-# Perform ANOVA on each model
-anova_model <- anova(model)
-anova_model_no_outliers <- anova(model_no_outliers)
-anova_model_after_vif <- anova(model_after_vif)
-anova_model_after_vif_no_outliers <- anova(model_after_vif_no_outliers)
-
-# Create a function to extract ANOVA stats and convert to a data frame
-extract_anova_stats <- function(anova_result, model_name) {
-  anova_df <- as.data.frame(anova_result)
-  anova_df$Predictor <- rownames(anova_df)
-  anova_df$Model <- model_name
-  anova_df
-}
-
-# Extract stats for each model
-anova_stats_model <- extract_anova_stats(anova_model, "Original Model")
-anova_stats_model_no_outliers <- extract_anova_stats(anova_model_no_outliers, "Model No Outliers")
-anova_stats_model_after_vif <- extract_anova_stats(anova_model_after_vif, "Model After VIF")
-anova_stats_model_after_vif_no_outliers <- extract_anova_stats(anova_model_after_vif_no_outliers, "Model After VIF No Outliers")
-
-# Combine all ANOVA stats into one data frame
-combined_anova_stats <- rbind(anova_stats_model, anova_stats_model_no_outliers, anova_stats_model_after_vif, anova_stats_model_after_vif_no_outliers)
-
-# Categorize by Model
-combined_anova_stats <- combined_anova_stats %>% arrange(Model, `Pr(>F)`)
-
-# Display the categorized ANOVA stats
-print(combined_anova_stats)
-
-# Function to calculate BIC, AIC, and Adjusted R-squared
-get_model_metrics <- function(model, model_name) {
-  tibble(
-    Model = model_name,
-    AIC = AIC(model),
-    BIC = BIC(model),
-    Adjusted_R_Squared = summary(model)$adj.r.squared
-  )
-}
-
-# Calculate metrics for each model
-model_metrics <- bind_rows(
-  get_model_metrics(model, "model"),
-  get_model_metrics(model_no_outliers, "model_no_outliers"),
-  get_model_metrics(model_after_vif, "model_after_vif"),
-  get_model_metrics(model_after_vif_no_outliers, "model_after_vif_no_outliers")
-)
-
-# Print the table
-print(model_metrics)
-
-
-```
-
 STEPWISE FORWARD SELECTION:
 ```{r}
 library(tidyverse)
@@ -364,7 +298,7 @@ library(MASS)
 # Stepwise regression model
 step.model1 <- stepAIC(model_after_vif_no_outliers, direction = "both", 
                       trace = FALSE)
-summary(step.model)
+summary(step.model1)
 
 step.model2 <- stepAIC(model_after_vif, direction = "both", 
                       trace = FALSE)
@@ -387,5 +321,86 @@ step.model <- train(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT, data = clean_t
                     )
 step.model$results
 step.model$bestTune
+
+
+
+```
+
+
+# Choosing the best model
+ANOVA, CRITERIONS
+```{r}
+# anova(model)
+# anova(model_no_outliers)
+# anova(model_after_vif)
+# anova(model_after_vif_no_outliers)
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+# Perform ANOVA on each model
+anova_model <- anova(model)
+anova_model_no_outliers <- anova(model_no_outliers)
+anova_model_after_vif <- anova(model_after_vif)
+anova_model_after_vif_no_outliers <- anova(model_after_vif_no_outliers)
+anova_model_step.model1 <- anova(step.model1)
+anova_model_step.model2 <- anova(step.model2)
+anova_model_step.model3 <- anova(step.model3)
+anova_model_step.model4 <- anova(step.model4)
+
+# Create a function to extract ANOVA stats and convert to a data frame
+extract_anova_stats <- function(anova_result, model_name) {
+  anova_df <- as.data.frame(anova_result)
+  anova_df$Predictor <- rownames(anova_df)
+  anova_df$Model <- model_name
+  anova_df
+}
+
+# Extract stats for each model
+anova_stats_model <- extract_anova_stats(anova_model, "Original Model")
+anova_stats_model_no_outliers <- extract_anova_stats(anova_model_no_outliers, "Model No Outliers")
+anova_stats_model_after_vif <- extract_anova_stats(anova_model_after_vif, "Model After VIF")
+anova_stats_model_after_vif_no_outliers <- extract_anova_stats(anova_model_after_vif_no_outliers, "Model After VIF No Outliers")
+anova_stats_model_step.model1 <- extract_anova_stats(anova_model_step.model1, "Model 1 Anova Step Model")
+anova_stats_model_step.model2 <- extract_anova_stats(anova_model_step.model2, "Model 2 Anova Step Model")
+anova_stats_model_step.model3 <- extract_anova_stats(anova_model_step.model3, "Model 3 Anova Step Model")
+anova_stats_model_step.model4 <- extract_anova_stats(anova_model_step.model4, "Model 4 Anova Step Model")
+
+# Combine all ANOVA stats into one data frame
+combined_anova_stats <- rbind(anova_stats_model, anova_stats_model_no_outliers, anova_stats_model_after_vif, anova_stats_model_after_vif_no_outliers, anova_stats_model_step.model3, anova_stats_model_step.model1, anova_stats_model_step.model2, anova_stats_model_step.model4)
+
+# Categorize by Model
+combined_anova_stats <- combined_anova_stats %>% arrange(Model, `Pr(>F)`)
+
+# Display the categorized ANOVA stats
+print(combined_anova_stats)
+
+# Function to calculate BIC, AIC, and Adjusted R-squared
+get_model_metrics <- function(model, model_name) {
+  tibble(
+    Model = model_name,
+    AIC = AIC(model),
+    BIC = BIC(model),
+    Adjusted_R_Squared = summary(model)$adj.r.squared
+  )
+}
+
+# Calculate metrics for each model
+model_metrics <- bind_rows(
+  get_model_metrics(model, "model"),
+  get_model_metrics(model_no_outliers, "model_no_outliers"),
+  get_model_metrics(model_after_vif, "model_after_vif"),
+  get_model_metrics(model_after_vif_no_outliers, "model_after_vif_no_outliers"), 
+  get_model_metrics(step.model1, "anova_stats_model_step.model1"),
+  get_model_metrics(step.model2, "anova_stats_model_step.model2"),
+  get_model_metrics(step.model3, "anova_stats_model_step.model3"),
+  get_model_metrics(step.model4, "anova_stats_model_step.model4")
+
+)
+
+# Print the table
+print(model_metrics)
+
 
 ```
