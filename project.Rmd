@@ -444,3 +444,45 @@ ggplot(plot_data1) +
   theme_minimal()
 
 ```
+
+NEW ADDITION: BACKTRANSFORMATION OF COEFFICIENTS
+Try to back-transform everything.
+Our final model is model_after_vif_no_outliers
+train_data$MEDV <- (sqrt(train_data$MEDV))
+train_data$DIS <- log(sqrt(sqrt(train_data$DIS)))
+train_data$LSTAT <- -log(train_data$LSTAT)
+train_data$PTRATIO <- cos(sin(train_data$PTRATIO))
+train_data$NOX <- sin((train_data$NOX))
+train_data$ZN <- (cos(train_data$ZN))
+train_data$INDUS <- sqrt(train_data$INDUS)
+train_data$B <- log(train_data$B)
+train_data$CRIM <- cos(log(train_data$CRIM))**2
+
+```{r}
+coefficients <- coef(model_after_vif_no_outliers)
+coefficients
+
+#Assign coefficients from matrix to betas. Prepare for backtransformation
+B0 <- coefficients[1]
+tCRIM <- coefficients[2]
+tINDUS <- coefficients[3]
+tNOX <- coefficients[4]
+tDIS <- coefficients[5]
+tPTRATIO <- coefficients[6]
+tB <- coefficients[7]
+tLSTAT <- coefficients[8]
+
+#Backtransform
+btCRIM <- exp(acos(sqrt(tCRIM)))
+btINDUS <- tINDUS^2
+btNOX <- asin(tNOX)
+btDIS <- exp(tDIS)^4
+btPTRATIO <- asin(acos(tPTRATIO))
+btB <- exp(tB)
+btLSTAT <- exp(-tLSTAT)
+
+#Display all backtransformed coefficients
+bt_coef <- c(B0, btCRIM, btINDUS, btNOX, btDIS, btPTRATIO, btB, btLSTAT)
+bt_coef_df <- data.frame(col = bt_coef)
+print(bt_coef_df)
+```
