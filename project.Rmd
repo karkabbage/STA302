@@ -459,21 +459,24 @@ train_data$B <- log(train_data$B)
 train_data$CRIM <- cos(log(train_data$CRIM))**2
 
 ```{r}
-coefficients <- coef(model_after_vif_no_outliers)
+coefficients <- data.frame(col = coef(model_after_vif_no_outliers))
 coefficients
 
 #Assign coefficients from matrix to betas. Prepare for backtransformation
-B0 <- coefficients[1]
-tCRIM <- coefficients[2]
-tINDUS <- coefficients[3]
-tNOX <- coefficients[4]
-tDIS <- coefficients[5]
-tPTRATIO <- coefficients[6]
-tB <- coefficients[7]
-tLSTAT <- coefficients[8]
+B0 <- coefficients[1, 1]
+tCRIM <- coefficients[2, 1]
+tZN <- coefficients[3, 1]
+tINDUS <- coefficients[4, 1]
+tNOX <- coefficients[5, 1]
+tDIS <- coefficients[6, 1]
+tPTRATIO <- coefficients[7, 1]
+tB <- coefficients[8, 1]
+tLSTAT <- coefficients[9, 1]
+
 
 #Backtransform
 btCRIM <- exp(acos(sqrt(tCRIM)))
+btZN <- acos(tZN)
 btINDUS <- tINDUS^2
 btNOX <- asin(tNOX)
 btDIS <- exp(tDIS)^4
@@ -481,8 +484,16 @@ btPTRATIO <- asin(acos(tPTRATIO))
 btB <- exp(tB)
 btLSTAT <- exp(-tLSTAT)
 
-#Display all backtransformed coefficients
-bt_coef <- c(B0, btCRIM, btINDUS, btNOX, btDIS, btPTRATIO, btB, btLSTAT)
+# Display all backtransformed coefficients
+bt_coef <- c(B0, btCRIM, btZN, btINDUS, btNOX, btDIS, btPTRATIO, btB, btLSTAT)
+
+# Create a dataframe with the backtransformed coefficients
 bt_coef_df <- data.frame(col = bt_coef)
+
+# Add row names
+row_names <- c("Intercept", "CRIM", "ZN", "INDUS", "NOX", "DIS", "PTRATIO", "B", "LSTAT")
+row.names(bt_coef_df) <- row_names
+
+# Print the dataframe with row names
 print(bt_coef_df)
 ```
