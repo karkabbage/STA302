@@ -437,12 +437,12 @@ hist(valid_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "blac
 valid_data$MEDV <- (sqrt(valid_data$MEDV))
 valid_data$DIS <- log(sqrt(sqrt(valid_data$DIS)))
 valid_data$LSTAT <- -log(valid_data$LSTAT)
-valid_data$PTRATIO <- cos(sin(valid_data$PTRATIO))
-valid_data$NOX <- sin((valid_data$NOX))
+valid_data$PTRATIO <- (sin(valid_data$PTRATIO))
+valid_data$NOX <- log((valid_data$NOX))
 valid_data$ZN <- (cos(valid_data$ZN))
 valid_data$INDUS <- sqrt(valid_data$INDUS)
 valid_data$B <- log(valid_data$B)
-valid_data$CRIM <- cos(log(valid_data$CRIM))**2
+valid_data$CRIM <- cos(log(valid_data$CRIM))
 valid_data$AGE <- ((valid_data$AGE))
 
 # Function to create scatter plots with regression lines
@@ -468,18 +468,6 @@ plots <- lapply(predictors, function(predictor) {
 for (plot in plots) {
   print(plot)
 }
-
-hist(valid_data$MEDV, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$CRIM, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$ZN, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$INDUS, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$NOX, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$DIS, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$RAD, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$TAX, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
-hist(valid_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
 
 ```
 
@@ -616,56 +604,6 @@ Now, it's clear that there is multicolinearity for RAD and TAX predictors. After
 office hour note: themes but harder to interpret directly
 
 # Multicolinear remedial measures
-PCA
-```{r}
-# # install.packages("FactoMineR")
-# # install.packages("factoextra")
-# # install.packages("corrr")
-# # install.packages("ggcorrplot")
-# 
-# library(FactoMineR)
-# library(factoextra)
-# library(corrr)
-# library(ggcorrplot)
-# 
-# #clean_train_data <- clean_train_data %>% select(-TAX)
-# # clean_train_data <- clean_train_data %>% select(-RAD)
-# 
-# # we didn't standardize variables because the values for predictors are within reasonable ranges (0s-10, 10s-100, 100s-1000)
-# # Clean the data: Remove rows with missing or infinite values
-# clean_train_data <- clean_train_data[complete.cases(clean_train_data), ]
-# clean_train_data <- clean_train_data[!apply(clean_train_data, 1, function(x) any(is.infinite(x))), ]
-# 
-# 
-# data.pca <- princomp(clean_train_data)
-# summary(data.pca)
-# 
-# data.pca$loadings[, 1:2]
-# 
-# fviz_eig(data.pca, addlabels = TRUE)
-# 
-# fviz_pca_var(data.pca, col.var = "black")# Graph of the variables
-# fviz_cos2(data.pca, choice = "var", axes = 1:2) # contribution of variables
-# fviz_pca_var(data.pca, col.var = "cos2",
-#             gradient.cols = c("black", "orange", "green"),
-#             repel = TRUE)
-# 
-# library(devtools)
-# install_github("vqv/ggbiplot")
-# library(ggbiplot)
-# g <- ggbiplot(data.pca,
-#               obs.scale = 1,
-#               var.scale = 1,
-#               groups = model$predictors,
-#               ellipse = TRUE,
-#               circle = TRUE,
-#               ellipse.prob = 0.68)
-# g <- g + scale_color_discrete(name = '')
-# g <- g + theme(legend.direction = 'horizontal',
-#                legend.position = 'top')
-# print(g)
-
-```
 
 Ridge regression
 ```{r}
@@ -750,11 +688,6 @@ step.model_v$bestTune
 # Choosing the best model
 ANOVA, CRITERIONS
 ```{r}
-# anova(model)
-# anova(model_no_outliers)
-# anova(model_after_vif)
-# anova(model_after_vif_no_outliers)
-
 # Load necessary libraries
 library(dplyr)
 library(ggplot2)
@@ -765,41 +698,14 @@ if (!requireNamespace("MuMIn", quietly = TRUE)) {
 library(MuMIn)
 
 # Perform ANOVA on each model
-anova_model_v <- anova(model_v)
-anova_model_no_outliers_v <- anova(model_v_no_outliers)
-anova_model_after_vif_v <- anova(model_after_vif_v)
-anova_model_after_vif_no_outliers_v <- anova(model_after_vif_no_outliers_v)
-anova_model_step.model1_v <- anova(step.model1_v)
-anova_model_step.model2_v <- anova(step.model2_v)
-anova_model_step.model3_v <- anova(step.model3_v)
-anova_model_step.model4_v <- anova(step.model4_v)
-
-# Create a function to extract ANOVA stats and convert to a data frame
-extract_anova_stats <- function(anova_result, model_name) {
-  anova_df <- as.data.frame(anova_result)
-  anova_df$Predictor <- rownames(anova_df)
-  anova_df$Model <- model_name
-  anova_df
-}
-
-# Extract stats for each model
-anova_stats_model_v <- extract_anova_stats(anova_model_v, "Original Model")
-anova_stats_model_no_outliers_v <- extract_anova_stats(anova_model_no_outliers_v, "Model No Outliers")
-anova_stats_model_after_vif_v <- extract_anova_stats(anova_model_after_vif_v, "Model After VIF")
-anova_stats_model_after_vif_no_outliers_v <- extract_anova_stats(anova_model_after_vif_no_outliers_v, "Model After VIF No Outliers")
-anova_stats_model_step.model1_v <- extract_anova_stats(anova_model_step.model1_v, "Model 1 Anova Step Model")
-anova_stats_model_step.model2_v <- extract_anova_stats(anova_model_step.model2_v, "Model 2 Anova Step Model")
-anova_stats_model_step.model3_v <- extract_anova_stats(anova_model_step.model3_v, "Model 3 Anova Step Model")
-anova_stats_model_step.model4_v <- extract_anova_stats(anova_model_step.model4_v, "Model 4 Anova Step Model")
-
-# Combine all ANOVA stats into one data frame
-combined_anova_stats_v <- rbind(anova_stats_model_v, anova_stats_model_no_outliers_v, anova_stats_model_after_vif_v, anova_stats_model_after_vif_no_outliers_v, anova_stats_model_step.model3_v, anova_stats_model_step.model1_v, anova_stats_model_step.model2_v, anova_stats_model_step.model4_v)
-
-# Categorize by Model
-combined_anova_stats_v <- combined_anova_stats_v %>% arrange(Model, `Pr(>F)`)
-
-# Display the categorized ANOVA stats
-print(combined_anova_stats_v)
+anova(model_v)
+anova(model_v_no_outliers)
+anova(model_after_vif_v)
+anova(model_after_vif_no_outliers_v)
+anova(step.model1_v)
+anova(step.model2_v)
+anova(step.model3_v)
+anova(step.model4_v)
 
 # Function to calculate BIC, AIC, and Adjusted R-squared
 get_model_metrics <- function(model, model_name) {
@@ -818,16 +724,19 @@ model_metrics_v <- bind_rows(
   get_model_metrics(model_v_no_outliers, "model_no_outliers"),
   get_model_metrics(model_after_vif_v, "model_after_vif"),
   get_model_metrics(model_after_vif_no_outliers_v, "model_after_vif_no_outliers"), 
-  get_model_metrics(step.model1_v, "anova_stats_model_step.model1"),
-  get_model_metrics(step.model2_v, "anova_stats_model_step.model2"),
-  get_model_metrics(step.model3_v, "anova_stats_model_step.model3"),
-  get_model_metrics(step.model4_v, "anova_stats_model_step.model4")
+  get_model_metrics(step.model1_v, "step.model1_v"),
+  get_model_metrics(step.model2_v, "step.model2_v"),
+  get_model_metrics(step.model3_v, "step.model3_v"),
+  get_model_metrics(step.model4_v, "step.model4_v")
 
 )
 
 # Print the table
 print(model_metrics_v)
 
+```
+
+```{r}
 # anova pair-wise testing for full vs reduced model versions:
 anova(model_after_vif_v, model_v) # model
 anova(step.model1_v, model_after_vif_no_outliers_v) # reduced
@@ -837,7 +746,7 @@ anova(step.model4_v, model_v) # reduced
 
 ```
 
-# PART 3: FINAL MODELS
+# PART 3: FINAL MODELS and COMPARISON ON VALIDATION TEST DATA!!!
 ```{r}
 
 top_model_1_v <- step.model3_v
@@ -911,6 +820,70 @@ for (i in seq_along(top_models)) {
 for (i in seq_along(plot_list)) {
   print(plot_list[[i]])
 }
+
+# Assuming your models are named as model_train and model_valid
+
+# 1. Compare coefficients
+coefficients_train <- coef(top_model_1)
+coefficients_valid <- coef(top_model_1_v)
+
+# Print coefficients for comparison
+print("Coefficients from Training Model:")
+print(coefficients_train)
+print("Coefficients from Validation Model:")
+print(coefficients_valid)
+
+# 2. Compare significance (p-values) of the coefficients
+summary_train <- summary(top_model_1)
+summary_valid <- summary(top_model_1_v)
+
+p_values_train <- summary_train$coefficients[, 4]
+p_values_valid <- summary_valid$coefficients[, 4]
+
+# Print p-values for comparison
+print("P-values from Training Model:")
+print(p_values_train)
+print("P-values from Validation Model:")
+print(p_values_valid)
+
+# 3. Compare adjusted R-squared values
+adjusted_r2_train <- summary_train$adj.r.squared
+adjusted_r2_valid <- summary_valid$adj.r.squared
+
+# Print adjusted R-squared values for comparison
+print("Adjusted R-squared from Training Model:")
+print(adjusted_r2_train)
+print("Adjusted R-squared from Validation Model:")
+print(adjusted_r2_valid)
+
+# Additional: Compute MSE for both models on the validation data
+# Assuming your validation data is named valid_data and has the response variable named MEDV
+predicted_valid_train <- predict(top_model_1, valid_data)
+predicted_valid_valid <- predict(top_model_1_v, valid_data)
+
+mse_valid_train <- mean((valid_data$MEDV - predicted_valid_train)^2)
+mse_valid_valid <- mean((valid_data$MEDV - predicted_valid_valid)^2)
+
+# Print MSE for comparison
+print("MSE from Training Model on Validation Data:")
+print(mse_valid_train)
+print("MSE from Validation Model on Validation Data:")
+print(mse_valid_valid)
+
+# 4. Obtain standard errors of coefficients
+std_errors_train <- summary_train$coefficients[, 2]
+std_errors_valid <- summary_valid$coefficients[, 2]
+
+# Print standard errors for comparison
+print("Standard Errors from Training Model:")
+print(std_errors_train)
+print("Standard Errors from Validation Model:")
+print(std_errors_valid)
+
+print("VIF Training Model:")
+vif_model
+print("VIF from Validation Model:")
+vif_model_v
 
 ```
 
