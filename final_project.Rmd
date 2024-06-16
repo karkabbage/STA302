@@ -1,0 +1,973 @@
+---
+title: "STA302 Project"
+author: "Karyna Lim"
+date: "2024-06-17"
+output: pdf_document
+---
+
+# Part1: Data exploration and satisfying assumptions
+
+```{r}
+#install these and uncomment if u didn't download them yet:
+# install.packages("car")
+
+set.seed(39)
+# Install and load necessary packages
+library(MASS)
+library(dplyr)
+library(ggplot2)
+library(ggfortify)
+library(gridExtra)
+library(car)
+
+data_raw = read.csv("real_estate_final.csv") #load data
+total_observations <- nrow(data_raw) #total observations
+n_train = ceiling(total_observations*0.7) # number of samples
+train_data <- data_raw[sample(nrow(data_raw), n_train), ]
+
+# predictors related to community factors: 
+predictors <- c("CRIM","ZN","INDUS","NOX","DIS","RAD", "AGE", "TAX","PTRATIO","B","LSTAT")
+response <- "MEDV"
+
+# Plot histograms for each variable
+hist(train_data$MEDV, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$CRIM, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$ZN, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$INDUS, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$NOX, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$DIS, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$RAD, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$TAX, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(train_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
+  
+  
+# transformations based on scatterplots:
+train_data$MEDV <- (sqrt(train_data$MEDV))
+train_data$DIS <- log(sqrt(sqrt(train_data$DIS)))
+train_data$LSTAT <- -log(train_data$LSTAT)
+train_data$PTRATIO <- (sin(train_data$PTRATIO))
+train_data$NOX <- log((train_data$NOX))
+train_data$ZN <- (cos(train_data$ZN))
+train_data$INDUS <- sqrt(train_data$INDUS)
+train_data$B <- log(train_data$B)
+train_data$CRIM <- cos(log(train_data$CRIM))
+train_data$AGE <- ((train_data$AGE))
+
+# Function to create scatter plots with regression lines
+create_scatter_plot <- function(data, response, predictor) {
+  ggplot(data, aes_string(x = predictor, y = response)) +
+    geom_point(alpha = 0.5) + 
+    geom_smooth(method = "lm", se = FALSE, col = "blue", linetype = "dashed") +  # Linear regression line
+    geom_smooth(method = "loess", se = FALSE, col = "red") +  # LOESS smooth line
+     labs(title = paste("Scatter plot of", response, "vs", predictor),
+         x = predictor, y = response) +
+    theme_bw()
+}
+
+# Plot for each predictor
+plots <- lapply(predictors, function(pred) create_scatter_plot(train_data, pred, response))
+
+# Create plots and display them
+plots <- lapply(predictors, function(predictor) {
+  create_scatter_plot(train_data, "MEDV", predictor)
+})
+
+# Print the plots
+for (plot in plots) {
+  print(plot)
+}
+# 
+# hist(train_data$MEDV, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$CRIM, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$ZN, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$INDUS, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$NOX, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$DIS, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$RAD, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$TAX, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
+# hist(train_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
+
+```
+
+Now that the plots respect linearity, we've satisfied condition #1 for multilinear regression and that the data fits is going to fit in the appropriate model (linear). Although there are jumps, that may be due to outliers given jumps in data so linearity is less clear. With that, we'll test our residuals assumptions
+
+```{r}
+model <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT+AGE, data = train_data)
+summary(model) # current fit after applying transformations
+autoplot(model) # evaluating if residuals satisfy assumptions (they don't):
+```
+Now we'll remove out liars to test if its a better fit:
+
+```{r}
+# Calculate Cook's distance for each observation
+cooksd <- cooks.distance(model)
+
+# Define the threshold for Cook's distance
+threshold <- 4 / n_train
+
+# Identify influential points using a for loop
+influential_indices <- c()
+for (i in 1:length(cooksd)) {
+  if (!is.na(cooksd[i]) && cooksd[i] > threshold) {
+    influential_indices <- c(influential_indices, i)
+  }
+}
+
+# Remove influential points from the dataset
+clean_train_data <- train_data[-influential_indices, ]
+
+# Refit the model with the cleaned data
+model_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT+AGE, data = clean_train_data)
+summary(model_no_outliers)
+autoplot(model_no_outliers)
+```
+Residuals now fit better and when standardized, they fit the normal QQ plot better as well. No standardized residuals are past the [-4, 4] range.
+
+Extreme data point it has, reasoning like we remove it because it ruins analysis in data, leaving something extreme in is fine if there's no legit reason , don't remove so much if you model it and no longer represents population. would u still be modeling your goal, needing contextual reason, 
+
+Let's look at residuals with predictors separately: RESIDUALS VS. PREDICTORS. Ensure plots have no patterns (constant variance) (Modified from codealong6complete.rmd file).
+
+```{r, fig.height=12, fig.width=12} 
+X <- model.matrix(model_no_outliers)
+head(X)
+colnames(X)
+
+#take residuals
+rfull <- model_no_outliers$residuals
+
+# create residuals vs fitted value plot
+par(mfrow=c(3,3))
+plot(rfull ~ model_no_outliers$fitted.values, xlab="Fitted Values", ylab="Residuals")
+
+# plots for residuals vs predictors
+for(i in 2:12){
+plot(rfull ~ X[,i], xlab=colnames(X)[i], ylab="Residuals")
+}
+
+# QQ plot
+qqnorm(rfull)
+qqline(rfull)
+```
+
+```{r}
+# check condition 1
+fit <- model$fitted.values
+plot(train_data$MEDV ~ fit)
+abline(a = 0, b = 1)
+lines(lowess(train_data$MEDV ~ fit), lty=2)
+
+# FIT vs Y: ensure that they both fit a line: checking linearity
+
+# check condition 2, this isn't residuals plot bad fanning/opening, no extreme
+```
+
+CHEKCING AND ADDRESSING MULTICOLINEARITY
+```{r}
+# Checking conditions for multiple lin regression
+# 1) Conditional mean response is single function of predictors (linearity transformations)
+# 2) Conditional mean of each predictor is lin function with another predictor(checking residuals)
+
+# Calculating VIF
+vif_model <- vif(model)
+vif_model
+
+vif_model_outliers <- vif(model_no_outliers)
+vif_model_outliers
+
+# Visualizing the model
+plot(model, which = 1, main = "Model Fit")
+barplot(vif_model, col = "skyblue", main = "Variance Inflation Factor (VIF)")
+
+plot(model_no_outliers, which = 1, main = "Model Fit")
+barplot(vif_model_outliers, col = "skyblue", main = "Variance Inflation Factor (VIF)")
+
+# Compute the correlation matrix
+correlation_matrix <- cor(clean_train_data, method = "pearson")
+
+# Install and load corrplot if not already installed
+if (!require(corrplot)) {
+  install.packages("corrplot")
+  library(corrplot)
+}
+
+# Visualize the correlation matrix
+corrplot(correlation_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black", addCoef.col = "black", number.cex = 0.7)
+
+```
+
+New model and checking assumptions after removing based on vif graph
+
+```{r}
+data_vif <- train_data %>% select(-RAD, -TAX)
+model_after_vif <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif)
+summary(model_after_vif)
+autoplot(model_after_vif)
+
+data_vif_no_outliers <- clean_train_data %>% select(-RAD, -TAX)
+model_after_vif_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif_no_outliers)
+summary(model_after_vif_no_outliers)
+autoplot(model_after_vif_no_outliers)
+```
+
+
+Now, it's clear that there is multicolinearity for RAD and TAX predictors. After removing outliers, the residual plots are improved but VIF has minimal difference. We will preform 1) PCA 2) Ridge Regression 3) 4) as potential models on the removed outliers data as some methods, like PCA, work best without outliers.
+
+office hour note: themes but harder to interpret directly
+
+# Multicolinear remedial measures
+PCA => NOT OPTIMAL DUE TO DATA CONSTRAINS and less advantages
+
+Ridge regression
+```{r}
+library(glmnet)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+ridge_data <- clean_train_data %>% select(CRIM, ZN, INDUS, NOX, DIS, RAD, TAX, PTRATIO, B, LSTAT, MEDV, AGE)
+
+# Preparing the matrices for glmnet
+X_train <- as.matrix(ridge_data %>% select(-MEDV))
+y_train <- ridge_data$MEDV
+X_test <- as.matrix(ridge_data %>% select(-MEDV))
+y_test <- ridge_data$MEDV
+
+# Finding the best lambda using cross-validation
+cv_fit <- cv.glmnet(X_train, y_train, alpha = 0)
+best_lambda <- cv_fit$lambda.min
+
+ridge_model <- glmnet(X_train, y_train, alpha = 0, lambda = best_lambda, standardize = TRUE)
+# Fit OLS model
+ols_model <- lm(y_train ~ X_train)
+
+# Evaluate performance of ridge and OLS on test set
+ols_pred <- predict(ols_model, data.frame(X_test))
+ridge_pred <- predict(ridge_model, X_test)
+ols_rmse <- sqrt(mean((y_test - ols_pred)^2))
+ridge_rmse <- sqrt(mean((y_test - ridge_pred)^2))
+
+rmse_data <- data.frame(Model = c("OLS", "Ridge"), RMSE = c(ols_rmse, ridge_rmse))
+
+ggplot(rmse_data, aes(x = Model, y = RMSE, fill = Model)) +
+  geom_bar(stat = "identity", color = "black", fill = c("blue", "green"), width = 0.5) +
+  geom_text(aes(label = RMSE), vjust = -0.3, color = "black", size = 3.5, position = position_dodge(width = 0.9)) +
+  labs(title = "Comparison of RMSE between OLS and Ridge Models",
+       x = "Model", y = "RMSE") +
+  theme_minimal()
+
+```
+
+STEPWISE FORWARD SELECTION:
+```{r}
+library(tidyverse)
+library(caret)
+library(leaps)
+library(MASS)
+
+# Stepwise regression model
+step.model1 <- stepAIC(model_after_vif_no_outliers, direction = "both", 
+                      trace = FALSE)
+summary(step.model1)
+
+step.model2 <- stepAIC(model_after_vif, direction = "both", 
+                      trace = FALSE)
+summary(step.model2)
+
+step.model3 <- stepAIC(model_no_outliers, direction = "both", 
+                      trace = FALSE)
+summary(step.model3)
+
+step.model4 <- stepAIC(model, direction = "both", 
+                      trace = FALSE)
+summary(step.model4)
+
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+step.model <- train(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT, data = clean_train_data,
+                    method = "leapBackward", 
+                    tuneGrid = data.frame(nvmax = 1:9),
+                    trControl = train.control
+                    )
+step.model$results
+step.model$bestTune
+
+
+
+```
+# Choosing the best model
+ANOVA, CRITERIONS
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+if (!requireNamespace("MuMIn", quietly = TRUE)) {
+  install.packages("MuMIn")
+}
+library(MuMIn)
+
+# Perform ANOVA on each model
+anova(model)
+anova(model_no_outliers)
+anova(model_after_vif)
+anova(model_after_vif_no_outliers)
+anova(step.model1)
+anova(step.model2)
+anova(step.model3)
+anova(step.model4)
+
+
+# Function to calculate BIC, AIC, and Adjusted R-squared
+get_model_metrics <- function(model, model_name) {
+  tibble(
+    Model = model_name,
+    AIC = AIC(model),
+    AICc = AICc(model, k=2),
+    BIC = BIC(model),
+    Adjusted_R_Squared = summary(model)$adj.r.squared
+  )
+}
+
+# Calculate metrics for each model
+model_metrics <- bind_rows(
+  get_model_metrics(model, "model"),
+  get_model_metrics(model_no_outliers, "model_no_outliers"),
+  get_model_metrics(model_after_vif, "model_after_vif"),
+  get_model_metrics(model_after_vif_no_outliers, "model_after_vif_no_outliers"), 
+  get_model_metrics(step.model1, "step.model1"),
+  get_model_metrics(step.model2, "step.model2"),
+  get_model_metrics(step.model3, "step.model3"),
+  get_model_metrics(step.model4, "step.model4")
+
+)
+
+# Print the table
+print(model_metrics)
+```
+
+```{r}
+# anova pair-wise testing for full vs reduced model versions:
+anova(model_after_vif, model) # model
+anova(step.model1, model_after_vif_no_outliers) # reduced
+anova(step.model2, model_after_vif) # reduced
+anova(step.model3, model_no_outliers) # reduced
+anova(step.model4, model) # reduced
+
+```
+
+# PART 3: FINAL MODELS
+```{r}
+
+top_model_1 <- step.model3
+top_model_2 <- model_no_outliers
+top_model_3 <- step.model4
+
+# List of top models (replace with your actual models)
+top_models <- list(top_model_1, top_model_2, top_model_3)
+
+# Initialize a list to store plots
+plot_list <- list()
+
+# Loop through each model
+for (i in seq_along(top_models)) {
+  model <- top_models[[i]]  # Get the current model
+  
+  # Predict values using the model
+  predicted_values <- predict(model, train_data)
+  
+  # Create a data frame with actual and predicted values
+  plot_data <- train_data %>%
+    mutate(Predicted_MEDV = predicted_values)
+  
+  # Create the plot for actual vs predicted values
+  plot <- ggplot(plot_data) +
+    geom_point(aes(x = MEDV, y = Predicted_MEDV), color = "blue", size = 2, alpha = 0.6) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") + 
+    labs(title = paste("Model", i, ": Actual vs Predicted Values"),
+         x = "Actual MEDV",
+         y = "Predicted MEDV",
+         caption = "Blue points are the actual vs predicted values. Red dashed line represents perfect prediction.") +
+    theme_minimal()  # Adjust the theme as per your preference
+  
+  # Append the plot to the plot_list
+  plot_list[[i]] <- plot
+}
+
+# Print or display the plots
+for (i in seq_along(plot_list)) {
+  print(plot_list[[i]])
+}
+
+
+```
+
+#PART 4: Validation / Testing
+```{r}
+# Get the row indices of train_data in data_raw
+train_indices <- as.integer(rownames(train_data))
+# Create validation data by excluding train_indices
+valid_data <- data_raw[-train_indices, ]
+
+n_valid = total_observations - n_train
+
+# predictors related to community factors: 
+predictors <- c("CRIM","ZN","INDUS","NOX","DIS","RAD", "AGE", "TAX","PTRATIO","B","LSTAT")
+response <- "MEDV"
+
+
+# Plot histograms for each variable
+hist(valid_data$MEDV, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$CRIM, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$ZN, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$INDUS, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$NOX, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$DIS, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$RAD, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$TAX, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
+  
+  
+# transformations based on scatterplots:
+valid_data$MEDV <- (sqrt(valid_data$MEDV))
+valid_data$DIS <- log(sqrt(sqrt(valid_data$DIS)))
+valid_data$LSTAT <- -log(valid_data$LSTAT)
+valid_data$PTRATIO <- cos(sin(valid_data$PTRATIO))
+valid_data$NOX <- sin((valid_data$NOX))
+valid_data$ZN <- (cos(valid_data$ZN))
+valid_data$INDUS <- sqrt(valid_data$INDUS)
+valid_data$B <- log(valid_data$B)
+valid_data$CRIM <- cos(log(valid_data$CRIM))**2
+valid_data$AGE <- ((valid_data$AGE))
+
+# Function to create scatter plots with regression lines
+create_scatter_plot <- function(data, response, predictor) {
+  ggplot(data, aes_string(x = predictor, y = response)) +
+    geom_point(alpha = 0.5) + 
+    geom_smooth(method = "lm", se = FALSE, col = "blue", linetype = "dashed") +  # Linear regression line
+    geom_smooth(method = "loess", se = FALSE, col = "red") +  # LOESS smooth line
+     labs(title = paste("Scatter plot of", response, "vs", predictor),
+         x = predictor, y = response) +
+    theme_bw()
+}
+
+# Plot for each predictor
+plots <- lapply(predictors, function(pred) create_scatter_plot(valid_data, pred, response))
+
+# Create plots and display them
+plots <- lapply(predictors, function(predictor) {
+  create_scatter_plot(valid_data, "MEDV", predictor)
+})
+
+# Print the plots
+for (plot in plots) {
+  print(plot)
+}
+
+hist(valid_data$MEDV, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$CRIM, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$ZN, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$INDUS, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$NOX, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$DIS, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$RAD, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$TAX, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
+hist(valid_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
+
+```
+
+Now that the plots respect linearity, we've satisfied condition #1 for multilinear regression and that the data fits is going to fit in the appropriate model (linear). Although there are jumps, that may be due to outliers given jumps in data so linearity is less clear. With that, we'll test our residuals assumptions
+
+```{r}
+model_v <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT+AGE, data = valid_data)
+summary(model_v) # current fit after applying transformations
+autoplot(model_v) # evaluating if residuals satisfy assumptions (they don't):
+```
+Now we'll remove out liars to test if its a better fit:
+
+```{r}
+# Calculate Cook's distance for each observation
+cooksd_v <- cooks.distance(model_v)
+
+# Define the threshold for Cook's distance
+n_valid <- nrow(valid_data)
+threshold_v <- 4 / n_valid
+
+# Identify influential points using a logical vector
+influential_indices_v <- which(cooksd_v > threshold_v)
+
+# Optionally, print or examine influential indices
+print(influential_indices_v)
+
+# Remove influential points from the validation dataset
+clean_valid_data <- valid_data[-influential_indices_v, ]
+
+
+# # Identify influential points using a for loop
+# influential_indices_v <- c()
+# for (i in 1:length(cooksd_v)) {
+#   if (!is.na(cooksd_v[i]) && cooksd_v[i] > cooksd_v) {
+#     influential_indices_v <- c(influential_indices_v, i)
+#   }
+# }
+
+# Remove influential points from the dataset
+clean_valid_data <- valid_data[-influential_indices_v, ]
+
+# Refit the model with the cleaned data
+model_v_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+RAD+TAX+PTRATIO+B+LSTAT+AGE, data = clean_valid_data)
+summary(model_v_no_outliers)
+autoplot(model_v_no_outliers)
+```
+Residuals now fit better and when standardized, they fit the normal QQ plot better as well. No standardized residuals are past the [-4, 4] range.
+
+Extreme data point it has, reasoning like we remove it because it ruins analysis in data, leaving something extreme in is fine if there's no legit reason , don't remove so much if you model it and no longer represents population. would u still be modeling your goal, needing contextual reason, 
+
+Let's look at residuals with predictors separately: RESIDUALS VS. PREDICTORS. Ensure plots have no patterns (constant variance) (Modified from codealong6complete.rmd file).
+
+```{r, fig.height=12, fig.width=12} 
+X_v <- model.matrix(model_v_no_outliers)
+head(X_v)
+colnames(X_v)
+
+#take residuals
+rfull_v <- model_v_no_outliers$residuals
+
+# create residuals vs fitted value plot
+par(mfrow=c(3,3))
+plot(rfull_v ~ model_v_no_outliers$fitted.values, xlab="Fitted Values", ylab="Residuals")
+
+# plots for residuals vs predictors
+for(i in 2:12){
+plot(rfull_v ~ X_v[,i], xlab=colnames(X)[i], ylab="Residuals")
+}
+
+# QQ plot
+qqnorm(rfull_v)
+qqline(rfull_v)
+```
+
+```{r}
+# check condition 1
+fit_v <- model_v$fitted.values
+plot(valid_data$MEDV ~ fit_v)
+abline(a = 0, b = 1)
+lines(lowess(valid_data$MEDV ~ fit_v), lty=2)
+```
+
+CHEKCING AND ADDRESSING MULTICOLINEARITY
+```{r}
+# Checking conditions for multiple lin regression
+# 1) Conditional mean response is single function of predictors (linearity transformations)
+# 2) Conditional mean of each predictor is lin function with another predictor(checking residuals)
+
+# Calculating VIF
+vif_model_v <- vif(model_v)
+vif_model_v
+
+vif_model_outliers_v <- vif(model_v_no_outliers)
+vif_model_outliers_v
+
+# Visualizing the model
+plot(model_v, which = 1, main = "Model Fit")
+barplot(vif_model_v, col = "skyblue", main = "Variance Inflation Factor (VIF)")
+
+plot(model_v_no_outliers, which = 1, main = "Model Fit")
+barplot(vif_model_outliers_v, col = "skyblue", main = "Variance Inflation Factor (VIF)")
+
+# Compute the correlation matrix
+correlation_matrix_v <- cor(clean_valid_data, method = "pearson")
+
+# Install and load corrplot if not already installed
+if (!require(corrplot)) {
+  install.packages("corrplot")
+  library(corrplot)
+}
+
+# Visualize the correlation matrix
+corrplot(correlation_matrix_v, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black", addCoef.col = "black", number.cex = 0.7)
+
+```
+
+New model and checking assumptions after removing based on vif graph
+
+```{r}
+data_vif_v <- valid_data %>% select(-RAD, -TAX)
+model_after_vif_v <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif_v)
+summary(model_after_vif_v)
+autoplot(model_after_vif_v)
+
+data_vif_no_outliers_v <- clean_valid_data %>% select(-RAD, -TAX)
+model_after_vif_no_outliers_v <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif_no_outliers_v)
+summary(model_after_vif_no_outliers_v)
+autoplot(model_after_vif_no_outliers_v)
+```
+
+
+Now, it's clear that there is multicolinearity for RAD and TAX predictors. After removing outliers, the residual plots are improved but VIF has minimal difference. We will preform 1) PCA 2) Ridge Regression 3) 4) as potential models on the removed outliers data as some methods, like PCA, work best without outliers.
+
+office hour note: themes but harder to interpret directly
+
+# Multicolinear remedial measures
+PCA
+```{r}
+# # install.packages("FactoMineR")
+# # install.packages("factoextra")
+# # install.packages("corrr")
+# # install.packages("ggcorrplot")
+# 
+# library(FactoMineR)
+# library(factoextra)
+# library(corrr)
+# library(ggcorrplot)
+# 
+# #clean_train_data <- clean_train_data %>% select(-TAX)
+# # clean_train_data <- clean_train_data %>% select(-RAD)
+# 
+# # we didn't standardize variables because the values for predictors are within reasonable ranges (0s-10, 10s-100, 100s-1000)
+# # Clean the data: Remove rows with missing or infinite values
+# clean_train_data <- clean_train_data[complete.cases(clean_train_data), ]
+# clean_train_data <- clean_train_data[!apply(clean_train_data, 1, function(x) any(is.infinite(x))), ]
+# 
+# 
+# data.pca <- princomp(clean_train_data)
+# summary(data.pca)
+# 
+# data.pca$loadings[, 1:2]
+# 
+# fviz_eig(data.pca, addlabels = TRUE)
+# 
+# fviz_pca_var(data.pca, col.var = "black")# Graph of the variables
+# fviz_cos2(data.pca, choice = "var", axes = 1:2) # contribution of variables
+# fviz_pca_var(data.pca, col.var = "cos2",
+#             gradient.cols = c("black", "orange", "green"),
+#             repel = TRUE)
+# 
+# library(devtools)
+# install_github("vqv/ggbiplot")
+# library(ggbiplot)
+# g <- ggbiplot(data.pca,
+#               obs.scale = 1,
+#               var.scale = 1,
+#               groups = model$predictors,
+#               ellipse = TRUE,
+#               circle = TRUE,
+#               ellipse.prob = 0.68)
+# g <- g + scale_color_discrete(name = '')
+# g <- g + theme(legend.direction = 'horizontal',
+#                legend.position = 'top')
+# print(g)
+
+```
+
+Ridge regression
+```{r}
+
+#install.packages(c('glmnet', 'ggplot2', 'tidyr', ‘dplyr’))
+
+library(glmnet)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+ridge_data <- clean_valid_data %>% select(CRIM, ZN, INDUS, NOX, DIS, RAD, TAX, PTRATIO, B, LSTAT, MEDV, AGE)
+
+# Preparing the matrices for glmnet
+X_train <- as.matrix(ridge_data %>% select(-MEDV))
+y_train <- ridge_data$MEDV
+X_test <- as.matrix(ridge_data %>% select(-MEDV))
+y_test <- ridge_data$MEDV
+
+# Finding the best lambda using cross-validation
+cv_fit <- cv.glmnet(X_train, y_train, alpha = 0)
+best_lambda <- cv_fit$lambda.min
+
+ridge_model <- glmnet(X_train, y_train, alpha = 0, lambda = best_lambda, standardize = TRUE)
+# Fit OLS model
+ols_model <- lm(y_train ~ X_train)
+
+# Evaluate performance of ridge and OLS on test set
+ols_pred <- predict(ols_model, data.frame(X_test))
+ridge_pred <- predict(ridge_model, X_test)
+ols_rmse <- sqrt(mean((y_test - ols_pred)^2))
+ridge_rmse <- sqrt(mean((y_test - ridge_pred)^2))
+
+rmse_data <- data.frame(Model = c("OLS", "Ridge"), RMSE = c(ols_rmse, ridge_rmse))
+
+ggplot(rmse_data, aes(x = Model, y = RMSE, fill = Model)) +
+  geom_bar(stat = "identity", color = "black", fill = c("blue", "green"), width = 0.5) +
+  geom_text(aes(label = RMSE), vjust = -0.3, color = "black", size = 3.5, position = position_dodge(width = 0.9)) +
+  labs(title = "Comparison of RMSE between OLS and Ridge Models",
+       x = "Model", y = "RMSE") +
+  theme_minimal()
+
+```
+
+STEPWISE FORWARD SELECTION:
+```{r}
+library(tidyverse)
+library(caret)
+library(leaps)
+library(MASS)
+
+# Stepwise regression model
+step.model1_v <- stepAIC(model_after_vif_no_outliers_v, direction = "both", 
+                      trace = FALSE)
+summary(step.model1_v)
+
+step.model2_v <- stepAIC(model_after_vif_v, direction = "both", 
+                      trace = FALSE)
+summary(step.model2_v)
+
+step.model3_v <- stepAIC(model_v_no_outliers, direction = "both", 
+                      trace = FALSE)
+summary(step.model3_v)
+
+step.model4_v <- stepAIC(model_v, direction = "both", 
+                      trace = FALSE)
+summary(step.model4_v)
+
+# Set up repeated k-fold cross-validation
+train.control_v <- trainControl(method = "cv", number = 10)
+step.model_v <- train(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT, data = clean_valid_data,
+                    method = "leapBackward", 
+                    tuneGrid = data.frame(nvmax = 1:9),
+                    trControl = train.control_v
+                    )
+step.model_v$results
+step.model_v$bestTune
+
+```
+
+
+# Choosing the best model
+ANOVA, CRITERIONS
+```{r}
+# anova(model)
+# anova(model_no_outliers)
+# anova(model_after_vif)
+# anova(model_after_vif_no_outliers)
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+if (!requireNamespace("MuMIn", quietly = TRUE)) {
+  install.packages("MuMIn")
+}
+library(MuMIn)
+
+# Perform ANOVA on each model
+anova_model_v <- anova(model_v)
+anova_model_no_outliers_v <- anova(model_v_no_outliers)
+anova_model_after_vif_v <- anova(model_after_vif_v)
+anova_model_after_vif_no_outliers_v <- anova(model_after_vif_no_outliers_v)
+anova_model_step.model1_v <- anova(step.model1_v)
+anova_model_step.model2_v <- anova(step.model2_v)
+anova_model_step.model3_v <- anova(step.model3_v)
+anova_model_step.model4_v <- anova(step.model4_v)
+
+# Create a function to extract ANOVA stats and convert to a data frame
+extract_anova_stats <- function(anova_result, model_name) {
+  anova_df <- as.data.frame(anova_result)
+  anova_df$Predictor <- rownames(anova_df)
+  anova_df$Model <- model_name
+  anova_df
+}
+
+# Extract stats for each model
+anova_stats_model_v <- extract_anova_stats(anova_model_v, "Original Model")
+anova_stats_model_no_outliers_v <- extract_anova_stats(anova_model_no_outliers_v, "Model No Outliers")
+anova_stats_model_after_vif_v <- extract_anova_stats(anova_model_after_vif_v, "Model After VIF")
+anova_stats_model_after_vif_no_outliers_v <- extract_anova_stats(anova_model_after_vif_no_outliers_v, "Model After VIF No Outliers")
+anova_stats_model_step.model1_v <- extract_anova_stats(anova_model_step.model1_v, "Model 1 Anova Step Model")
+anova_stats_model_step.model2_v <- extract_anova_stats(anova_model_step.model2_v, "Model 2 Anova Step Model")
+anova_stats_model_step.model3_v <- extract_anova_stats(anova_model_step.model3_v, "Model 3 Anova Step Model")
+anova_stats_model_step.model4_v <- extract_anova_stats(anova_model_step.model4_v, "Model 4 Anova Step Model")
+
+# Combine all ANOVA stats into one data frame
+combined_anova_stats_v <- rbind(anova_stats_model_v, anova_stats_model_no_outliers_v, anova_stats_model_after_vif_v, anova_stats_model_after_vif_no_outliers_v, anova_stats_model_step.model3_v, anova_stats_model_step.model1_v, anova_stats_model_step.model2_v, anova_stats_model_step.model4_v)
+
+# Categorize by Model
+combined_anova_stats_v <- combined_anova_stats_v %>% arrange(Model, `Pr(>F)`)
+
+# Display the categorized ANOVA stats
+print(combined_anova_stats_v)
+
+# Function to calculate BIC, AIC, and Adjusted R-squared
+get_model_metrics <- function(model, model_name) {
+  tibble(
+    Model = model_name,
+    AIC = AIC(model),
+    AICc = AICc(model, k=2),
+    BIC = BIC(model),
+    Adjusted_R_Squared = summary(model)$adj.r.squared
+  )
+}
+
+# Calculate metrics for each model
+model_metrics_v <- bind_rows(
+  get_model_metrics(model_v, "model"),
+  get_model_metrics(model_v_no_outliers, "model_no_outliers"),
+  get_model_metrics(model_after_vif_v, "model_after_vif"),
+  get_model_metrics(model_after_vif_no_outliers_v, "model_after_vif_no_outliers"), 
+  get_model_metrics(step.model1_v, "anova_stats_model_step.model1"),
+  get_model_metrics(step.model2_v, "anova_stats_model_step.model2"),
+  get_model_metrics(step.model3_v, "anova_stats_model_step.model3"),
+  get_model_metrics(step.model4_v, "anova_stats_model_step.model4")
+
+)
+
+# Print the table
+print(model_metrics_v)
+
+# anova pair-wise testing for full vs reduced model versions:
+anova(model_after_vif_v, model_v) # model
+anova(step.model1_v, model_after_vif_no_outliers_v) # reduced
+anova(step.model2_v, model_after_vif_v) # reduced
+anova(step.model3_v, model_v_no_outliers) # reduced
+anova(step.model4_v, model_v) # reduced
+
+```
+
+# PART 3: FINAL MODELS
+```{r}
+
+top_model_1_v <- step.model3_v
+top_model_2_v <- model_v_no_outliers
+top_model_3_v <- step.model4_v
+
+# List of top models (replace with your actual models)
+top_models_v <- list(top_model_1_v, top_model_2_v, top_model_3_v)
+
+# Initialize a list to store plots
+plot_list <- list()
+
+# Loop through each model
+for (i in seq_along(top_models_v)) {
+  model <- top_models[[i]]  # Get the current model
+  
+  # Predict values using the model
+  predicted_values <- predict(model, valid_data)
+  
+  # Create a data frame with actual and predicted values
+  plot_data <- valid_data %>%
+    mutate(Predicted_MEDV = predicted_values)
+  
+  # Create the plot for actual vs predicted values
+  plot <- ggplot(plot_data) +
+    geom_point(aes(x = MEDV, y = Predicted_MEDV), color = "blue", size = 2, alpha = 0.6) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") + 
+    labs(title = paste("Model", i, ": Actual vs Predicted Values"),
+         x = "Actual MEDV",
+         y = "Predicted MEDV",
+         caption = "Blue points are the actual vs predicted values. Red dashed line represents perfect prediction.") +
+    theme_minimal()  # Adjust the theme as per your preference
+  
+  # Append the plot to the plot_list
+  plot_list[[i]] <- plot
+}
+
+# Print or display the plots
+for (i in seq_along(plot_list)) {
+  print(plot_list[[i]])
+}
+
+
+# testing validate data on lin regression from training
+# Loop through each model
+for (i in seq_along(top_models)) {
+  model <- top_models[[i]]  # Get the current model
+  
+  # Predict values using the model
+  predicted_values <- predict(model, valid_data)
+  
+  # Create a data frame with actual and predicted values
+  plot_data <- valid_data %>%
+    mutate(Predicted_MEDV = predicted_values)
+  
+  # Create the plot for actual vs predicted values
+  plot <- ggplot(plot_data) +
+    geom_point(aes(x = MEDV, y = Predicted_MEDV), color = "blue", size = 2, alpha = 0.6) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") + 
+    labs(title = paste("Model", i, ": Actual vs Predicted Values"),
+         x = "Actual MEDV",
+         y = "Predicted MEDV",
+         caption = "Blue points are the actual vs predicted values. Red dashed line represents perfect prediction.") +
+    theme_minimal()  # Adjust the theme as per your preference
+  
+  # Append the plot to the plot_list
+  plot_list[[i]] <- plot
+}
+
+# Print or display the plots
+for (i in seq_along(plot_list)) {
+  print(plot_list[[i]])
+}
+
+```
+
+
+
+NEW ADDITION: BACKTRANSFORMATION OF COEFFICIENTS
+Try to back-transform everything.
+Our final model is model_after_vif_no_outliers
+train_data$MEDV <- (sqrt(train_data$MEDV))
+train_data$DIS <- log(sqrt(sqrt(train_data$DIS)))
+train_data$LSTAT <- -log(train_data$LSTAT)
+train_data$PTRATIO <- (sin(train_data$PTRATIO))
+train_data$NOX <- log((train_data$NOX))
+train_data$ZN <- (cos(train_data$ZN))
+train_data$INDUS <- sqrt(train_data$INDUS)
+train_data$B <- log(train_data$B)
+train_data$CRIM <- cos(log(train_data$CRIM))
+train_data$AGE <- ((train_data$AGE))
+
+```{r}
+coefficients <- data.frame(col = coef(top_model_1))
+coefficients
+
+#Assign coefficients from matrix to betas. Prepare for backtransformation
+B0 <- coefficients[1, 1]
+tCRIM <- coefficients[2, 1]
+tZN <- coefficients[3, 1]
+tINDUS <- coefficients[4, 1]
+tNOX <- coefficients[5, 1]
+tDIS <- coefficients[6, 1]
+tPTRATIO <- coefficients[7, 1]
+tB <- coefficients[8, 1]
+tLSTAT <- coefficients[9, 1]
+
+
+#Backtransform
+btCRIM <- exp(acos((tCRIM)))
+btZN <- acos(tZN)
+btINDUS <- tINDUS^2
+btNOX <- acos(tNOX)
+btDIS <- exp(tDIS)^4
+btPTRATIO <- asin((tPTRATIO))
+btB <- exp(tB)
+btLSTAT <- exp(-tLSTAT)
+
+# Display all backtransformed coefficients
+bt_coef <- c(B0, btCRIM, btZN, btINDUS, btNOX, btDIS, btPTRATIO, btB, btLSTAT)
+
+# Create a dataframe with the backtransformed coefficients
+bt_coef_df <- data.frame(col = bt_coef)
+
+# Add row names
+row_names <- c("Intercept", "CRIM", "ZN", "INDUS", "NOX", "DIS", "PTRATIO", "B", "LSTAT")
+row.names(bt_coef_df) <- row_names
+
+# Print the dataframe with row names
+print(bt_coef_df)
+
+summary(top_model_1)
+```
