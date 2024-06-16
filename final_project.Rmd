@@ -42,6 +42,7 @@ hist(train_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "bl
 hist(train_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
 hist(train_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
   
+
   
 # transformations based on scatterplots:
 train_data$MEDV <- (sqrt(train_data$MEDV))
@@ -66,31 +67,17 @@ create_scatter_plot <- function(data, response, predictor) {
     theme_bw()
 }
 
-# Plot for each predictor
-plots <- lapply(predictors, function(pred) create_scatter_plot(train_data, pred, response))
 
-# Create plots and display them
+
+# Create plots for each predictor
 plots <- lapply(predictors, function(predictor) {
   create_scatter_plot(train_data, "MEDV", predictor)
 })
 
-# Print the plots
+# Print the plots (optional)
 for (plot in plots) {
   print(plot)
 }
-# 
-# hist(train_data$MEDV, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$CRIM, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$ZN, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$INDUS, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$NOX, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$DIS, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$RAD, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$TAX, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$PTRATIO, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$B, main = "Histogram of Data",col = "skyblue",border = "black")
-# hist(train_data$LSTAT, main = "Histogram of Data",col = "skyblue",border = "black")
-
 ```
 
 Now that the plots respect linearity, we've satisfied condition #1 for multilinear regression and that the data fits is going to fit in the appropriate model (linear). Although there are jumps, that may be due to outliers given jumps in data so linearity is less clear. With that, we'll test our residuals assumptions
@@ -202,15 +189,18 @@ corrplot(correlation_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.
 New model and checking assumptions after removing based on vif graph
 
 ```{r}
-data_vif <- train_data %>% select(-RAD, -TAX)
-model_after_vif <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif)
+data_vif <- train_data %>% select(-RAD, -TAX, -NOX, -DIS)
+model_after_vif <- lm(MEDV ~ CRIM+ZN+INDUS+PTRATIO+B+LSTAT+AGE, data = data_vif)
 summary(model_after_vif)
 autoplot(model_after_vif)
+vif(model_after_vif)
 
-data_vif_no_outliers <- clean_train_data %>% select(-RAD, -TAX)
-model_after_vif_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+NOX+DIS+PTRATIO+B+LSTAT+AGE, data = data_vif_no_outliers)
+data_vif_no_outliers <- clean_train_data %>% select(-RAD, -TAX, -NOX, -DIS)
+model_after_vif_no_outliers <- lm(MEDV ~ CRIM+ZN+INDUS+PTRATIO+B+LSTAT+AGE, data = data_vif_no_outliers)
 summary(model_after_vif_no_outliers)
 autoplot(model_after_vif_no_outliers)
+vif(model_after_vif_no_outliers)
+
 ```
 
 
@@ -746,7 +736,7 @@ anova(step.model4_v, model_v) # reduced
 
 ```
 
-# PART 3: FINAL MODELS and COMPARISON ON VALIDATION TEST DATA!!!
+# PART 3: FINAL MODELS and COMPARISON ON VALIDATION TEST DATA!
 ```{r}
 
 top_model_1_v <- step.model3_v
@@ -923,7 +913,7 @@ tLSTAT <- coefficients[9, 1]
 btCRIM <- exp(acos((tCRIM)))
 btZN <- acos(tZN)
 btINDUS <- tINDUS^2
-btNOX <- acos(tNOX)
+btNOX <- exp(tNOX)
 btDIS <- exp(tDIS)^4
 btPTRATIO <- asin((tPTRATIO))
 btB <- exp(tB)
